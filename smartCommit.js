@@ -28,35 +28,41 @@ const getDiff = (file) => {
 };
 
 const askOpenAI = async (diff, filename) => {
-  const prompt = `
-Tu es un assistant qui aide à écrire des messages de commit git. Résume clairement ce que fait ce diff du fichier ${filename}, en français, avec un emoji au début :
-\`\`\`diff
-${diff}
-\`\`\`
-`;
-console.log("📤 Prompt envoyé à OpenAI :\n", prompt);
-console.log("📥 Réponse brute :\n", JSON.stringify(json, null, 2));
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages: [
-        { role: "system", content: "Tu génères des messages de commit git concis, utiles, en français." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.5
-    })
-  });
-
+    const prompt = `
+  Tu es un assistant qui aide à écrire des messages de commit git. Résume clairement ce que fait ce diff du fichier ${filename}, en français, avec un emoji au début :
+  \`\`\`diff
+  ${diff}
+  \`\`\`
+  `;
   
-  const json = await res.json();
-  return json.choices?.[0]?.message?.content?.trim() || "🛠️ Modification non précisée";
-};
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [
+          { role: "system", content: "Tu génères des messages de commit git concis, utiles, en français." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.5
+      })
+    });
+  
+    const json = await res.json();
+  
+    // 🛠️ DEBUG pour voir ce que répond OpenAI
+    console.log(`📤 Prompt envoyé à OpenAI (${filename}) :\n`, prompt);
+    console.log("📥 Réponse brute :\n", JSON.stringify(json, null, 2));
+  
+    const message = json.choices?.[0]?.message?.content?.trim();
+    return message && !message.includes("non précisée")
+      ? message
+      : `🛠️ Modification dans \`${filename}\``;
+  };
+  
 
 const generate = async () => {
   const files = getStagedFiles();
