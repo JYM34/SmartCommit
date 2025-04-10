@@ -54,8 +54,8 @@ const askOpenAI = async (diff, filename) => {
     const json = await res.json();
   
     // 🛠️ DEBUG pour voir ce que répond OpenAI
-    console.log(`📤 Prompt envoyé à OpenAI (${filename}) :\n`, prompt);
-    console.log("📥 Réponse brute :\n", JSON.stringify(json, null, 2));
+    //console.log(`📤 Prompt envoyé à OpenAI (${filename}) :\n`, prompt);
+    //console.log("📥 Réponse brute :\n", JSON.stringify(json, null, 2));
   
     const message = json.choices?.[0]?.message?.content?.trim();
     return message && !message.includes("non précisée")
