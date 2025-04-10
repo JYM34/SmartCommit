@@ -1,6 +1,6 @@
 {
     "name": "smart-commit",
-    "version": "1.0.1",
+    "version": "1.2.0",
     "description": "Générateur intelligent de messages de commit à partir du diff Git et OpenAI.",
     "main": "smartCommit.js",
     "type": "module",

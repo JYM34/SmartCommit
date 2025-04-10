@@ -1,88 +1,78 @@
-#!/usr/bin/env node
-import "dotenv/config";
-import fetch from "node-fetch";
-import { execSync } from "child_process";
-import path from "path";
+const { execSync } = require("child_process");
+const fs = require("fs");
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "openai/gpt-3.5-turbo";
+// 📂 Liste les fichiers modifiés par rapport au dernier commit
+const changedFiles = execSync("git diff --name-only HEAD")
+  .toString()
+  .trim()
+  .split("\n")
+  .filter(Boolean);
 
-if (!OPENAI_API_KEY) {
-  console.error("❌ Clé OpenAI manquante. Ajoute-la dans .env.");
-  process.exit(1);
+if (changedFiles.length === 0) {
+  console.log("✅ Aucun fichier modifié.");
+  process.exit(0);
 }
 
-const run = (cmd) => execSync(cmd, { encoding: "utf8" }).trim();
-
-const getStagedFiles = () => {
-  const output = run("git diff --cached --name-only");
-  return output.split("\n").filter(Boolean);
-};
-
-const getDiff = (file) => {
+// 🔄 Analyse les diffs, même pour les fichiers supprimés
+const diffs = changedFiles.map(file => {
   try {
-    return run(`git diff --cached ${file}`);
-  } catch {
-    return "";
-  }
-};
+    const fileExists = fs.existsSync(file);
 
-const askOpenAI = async (diff, filename) => {
-    const prompt = `
-  Tu es un assistant qui aide à écrire des messages de commit git. Résume clairement ce que fait ce diff du fichier ${filename}, en français, avec un emoji au début :
-  \`\`\`diff
-  ${diff}
-  \`\`\`
-  `;
-  
-  const res = await fetch(`${process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL, // ou "anthropic/claude-3-haiku" ou autre modèle OpenRouter
-      messages: [
-        { role: "system", content: "Tu génères des messages de commit git concis, utiles, en français." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.5
-    })
-  });
-  
-    const json = await res.json();
-  
-    // 🛠️ DEBUG pour voir ce que répond OpenAI
-    //console.log(`📤 Prompt envoyé à OpenAI (${filename}) :\n`, prompt);
-    //console.log("📥 Réponse brute :\n", JSON.stringify(json, null, 2));
-  
-    const message = json.choices?.[0]?.message?.content?.trim();
-    return message && !message.includes("non précisée")
-      ? message
-      : `🛠️ Modification dans \`${filename}\``;
+    // ⚠️ Important : on utilise '--' pour dire à Git que ce sont des fichiers, pas des branches
+    const diff = execSync(`git diff HEAD -- "${file}"`).toString();
+
+    if (!fileExists) {
+      console.log(`🗑️  Le fichier supprimé "${file}" est inclus dans le commit.`);
+    }
+
+    return { file, diff };
+  } catch (e) {
+    console.warn(`⚠️ Erreur lors de l'analyse de ${file} :`, e.message);
+    return null;
+  }
+}).filter(Boolean);
+
+// 🧠 Génère un titre de commit basé sur les domaines de fichiers touchés
+const getTitle = () => {
+  // 🗂️ Dictionnaire de domaines personnalisés selon les chemins
+  const domainMap = {
+    "bot/Modules": "statut du bot",
+    "bot/Events": "événements Discord",
+    "bot/SlashCommands": "commandes",
+    "bot/Loaders": "chargement du bot",
+    "bot/Fonctions": "fonctions utilitaires",
+    "shared/": "données partagées",
+    "web/Routes/auth.js": "authentification Discord",
+    "web/Views/": "vues EJS",
+    "bot/config.js": "configuration",
+    "start.js": "démarrage",
+    "bot/index.js": "lancement principal"
   };
-  
 
-const generate = async () => {
-  const files = getStagedFiles();
-  if (files.length === 0) {
-    console.log("📭 Aucun fichier stagé.");
-    return;
-  }
+  const domains = new Set();
 
-  console.log("🧠 Analyse des fichiers modifiés...\n");
+  changedFiles.forEach(file => {
+    for (const prefix in domainMap) {
+      if (file.startsWith(prefix)) {
+        domains.add(domainMap[prefix]);
+        break;
+      }
+    }
+  });
 
-  const results = await Promise.all(files.map(async (file) => {
-    const diff = getDiff(file);
-    if (!diff) return `- 🛠️ Modification de \`${file}\``;
-
-    const message = await askOpenAI(diff, path.basename(file));
-    return `- ${message}`;
-  }));
-
-  console.log("\n📝 **Message de commit suggéré :**\n");
-  console.log(results.join("\n"));
+  const base = "🔧 Améliorations diverses sur ";
+  const title = [...domains].join(", ") || "le projet";
+  return base + title;
 };
 
-generate();
+// 📋 Génère un résumé des fichiers modifiés
+const summary = diffs.map(({ file }) => {
+  const isDeleted = !fs.existsSync(file);
+  const emoji = isDeleted ? "🗑️" : "🛠️";
+  return `- ${emoji} Modification de \`${file}\``;
+}).join("\n");
+
+// 📝 Affichage final du commit généré
+console.log("\n📝 **Message de commit suggéré :**\n");
+console.log(getTitle());
+console.log("\n" + summary);
