@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 import path from "path";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = "openai/gpt-3.5-turbo";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "openai/gpt-3.5-turbo";
 
 if (!OPENAI_API_KEY) {
   console.error("❌ Clé OpenAI manquante. Ajoute-la dans .env.");
@@ -42,7 +42,7 @@ const askOpenAI = async (diff, filename) => {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: "openai/gpt-3.5-turbo", // ou "anthropic/claude-3-haiku" ou autre modèle OpenRouter
+      model: OPENAI_MODEL, // ou "anthropic/claude-3-haiku" ou autre modèle OpenRouter
       messages: [
         { role: "system", content: "Tu génères des messages de commit git concis, utiles, en français." },
         { role: "user", content: prompt }
