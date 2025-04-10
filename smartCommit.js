@@ -1,5 +1,6 @@
-const { execSync } = require("child_process");
-const fs = require("fs");
+// ESM-friendly version
+import { execSync } from "child_process";
+import fs from "fs";
 
 // 📂 Liste les fichiers modifiés par rapport au dernier commit
 const changedFiles = execSync("git diff --name-only HEAD")
