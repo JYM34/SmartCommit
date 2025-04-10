@@ -35,21 +35,21 @@ const askOpenAI = async (diff, filename) => {
   \`\`\`
   `;
   
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [
-          { role: "system", content: "Tu génères des messages de commit git concis, utiles, en français." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.5
-      })
-    });
+  const res = await fetch(`${process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "openai/gpt-3.5-turbo", // ou "anthropic/claude-3-haiku" ou autre modèle OpenRouter
+      messages: [
+        { role: "system", content: "Tu génères des messages de commit git concis, utiles, en français." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.5
+    })
+  });
   
     const json = await res.json();
   
